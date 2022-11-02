@@ -2,7 +2,7 @@
 name     = "Ghost Extract 'n' Pack"
 author   = "XertroV"
 category = "Replay"
-version  = "0.1.6"
+version  = "0.1.7"
 
 [script]
 #__DEFINES__
