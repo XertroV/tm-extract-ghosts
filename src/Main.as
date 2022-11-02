@@ -4,7 +4,7 @@ ReplaysRoot@ replaysRoot;
 void Main() {
     CheckRequiredPermissions();
     @replaysRoot = ReplaysRoot();
-    // startnew(TestRipGhosts);
+    startnew(TestRipGhosts);
     startnew(CreateGhostsDir);
     startnew(AutoSaveReplaysCoro);
 }
@@ -16,32 +16,105 @@ void CreateGhostsDir() {
     }
 }
 
+bool ignoreCall = false;
+bool Ghost_Upload(CMwStack &in stack, CMwNod@ nod) {
+    if (ignoreCall) return true;
+    auto ah = stack.CurrentString();
+    print('additional headers: ' + ah);
+    auto url = stack.CurrentString(2);
+    print('url: ' + url);
+    auto g = stack.CurrentNod(1);
+    ExploreNod(g);
+    auto dfm = cast<CGameDataFileManagerScript>(nod);
+    if (dfm !is null) {
+        ignoreCall = true;
+        dfm.Ghost_Upload("http://localhost:8888", cast<CGameGhostScript>(stack.CurrentNod(1)), ah);
+        ignoreCall = false;
+        print('ghost uploaded');
+    } else {
+        print('ghost could not be cast');
+    }
+    return true;
+}
+
+// note: handles both Map_SetNewRecord_v2 and Map_SetNewRecord -- be careful of args
+bool Map_SetNewRecord_v2(CMwStack &in stack, CMwNod@ nod) {
+    if (ignoreCall) return true;
+    auto ghost = cast<CGameGhostScript>(stack.CurrentNod());
+    print("ghost is null: " + (ghost is null ? 't' : 'f'));
+    return true;
+}
+
 void TestRipGhosts() {
-    CGameDataFileManagerScript@ dataFileMgr;
-    while (dataFileMgr is null) {
-        yield();
-        try {
-            @dataFileMgr = cast<CTrackMania>(GetApp()).MenuManager.MenuCustom_CurrentManiaApp.DataFileMgr;
-        } catch {
-            ; // nothing
+    // Dev::InterceptProc("CGameDataFileManagerScript", "Ghost_Upload", Ghost_Upload);
+    // Dev::InterceptProc("CGameScoreAndLeaderBoardManagerScript", "Map_SetNewRecord_v2", Map_SetNewRecord_v2);
+    // Dev::InterceptProc("CGameScoreAndLeaderBoardManagerScript", "Map_SetNewRecord", Map_SetNewRecord_v2);
+
+    // GetApp().BasicDialogs.DialogSaveAs_OnValidate();
+    // GetApp().BasicDialogs.
+
+    // auto x = cast<CGameManiaPlanet>(GetApp());
+    // auto tmTitle = x.ManiaTitles[1];
+    // @tmTitle.MenuBgReplayFid = x.ReplayRecordInfos[4];
+
+    // string name = GetApp().Network.ClientManiaAppPlayground.LocalUser.Name;
+    // auto players = GetApp().CurrentPlayground.Players;
+    // for (uint i = 0; i < players.Length; i++) {
+    //     if (name == players[i].User.Name) {
+    //         auto g = GetApp().Network.ClientManiaAppPlayground.ScoreMgr.Playground_GetPlayerGhost(cast<CSmPlayer>(players[i]).ScriptAPI);
+    //         print("found player, Playground_GetPlayerGhost returned null? " + (g is null ? 'yes' : 'no'));
+    //         break;
+    //     }
+    // }
+
+
+    auto editor = cast<CGameEditorMediaTrackerPluginAPI>(GetApp().Editor.PluginAPI);
+    auto tracks = editor.Clip.Tracks;
+    print("got " + tracks.Length + " tracks");
+    for (uint i = 0; i < tracks.Length; i++) {
+        for (uint j = 0; j < tracks[i].Blocks.Length; j++) {
+            auto track = tracks[i].Blocks[j];
+            auto gTrack = cast<CGameCtnMediaBlockEntity>(track);
+            if (gTrack !is null) {
+                auto nbKeys = gTrack.GetKeysCount();
+                print("Track named " + tracks[i].Name + " is has block with " + nbKeys + " keys");
+                // for (uint k = 0; k < nbKeys; k++) {
+                //     auto item = gTrack.GetKeyTime(k);
+                // }
+            } else {
+                print("Track named " + tracks[i].Name + " is not an entity track.");
+                if (i == tracks.Length - 1) {
+                    ExploreNod(track);
+                }
+            }
         }
+
     }
-    string[] filenames = { "Autosaves/XertroV_$FFFit's a bit windy up here_PersonalBest_TimeAttack.Replay.Gbx"
-        , "Autosaves/XertroV_$s$f00Ca$d60st$bb0el$af0lo $0fcAr$3cdco$78dba$a5ele$c3eno $zft Queen_Clown_PersonalBest_TimeAttack.Replay.Gbx"
-        , "Replays/Penguin Slide_XertroV(00'52''03).Replay.Gbx"
-        };
-    for (uint i = 0; i < filenames.Length; i++) {
-        yield();
-        auto filename = filenames[i];
-        auto loading = dataFileMgr.Replay_Load(filename);
-        trace('loading.IsProcessing: ' + (loading.IsProcessing ? 'y' : 'n'));
-        while (loading.IsProcessing) yield();
-        if (loading.HasFailed) {
-            warn('faild to load ghosts - ' + loading.ErrorCode + ' - ' + loading.ErrorType + ' - ' + loading.ErrorDescription);
-            continue;
-        }
-        print("got this many ghosts: " + loading.Ghosts.Length + " from " + filename);
-    }
+    // CGameDataFileManagerScript@ dataFileMgr;
+    // while (dataFileMgr is null) {
+    //     yield();
+    //     try {
+    //         @dataFileMgr = cast<CTrackMania>(GetApp()).MenuManager.MenuCustom_CurrentManiaApp.DataFileMgr;
+    //     } catch {
+    //         ; // nothing
+    //     }
+    // }
+    // string[] filenames = { "Autosaves/XertroV_$FFFit's a bit windy up here_PersonalBest_TimeAttack.Replay.Gbx"
+    //     , "Autosaves/XertroV_$s$f00Ca$d60st$bb0el$af0lo $0fcAr$3cdco$78dba$a5ele$c3eno $zft Queen_Clown_PersonalBest_TimeAttack.Replay.Gbx"
+    //     , "Replays/Penguin Slide_XertroV(00'52''03).Replay.Gbx"
+    //     };
+    // for (uint i = 0; i < filenames.Length; i++) {
+    //     yield();
+    //     auto filename = filenames[i];
+    //     auto loading = dataFileMgr.Replay_Load(filename);
+    //     trace('loading.IsProcessing: ' + (loading.IsProcessing ? 'y' : 'n'));
+    //     while (loading.IsProcessing) yield();
+    //     if (loading.HasFailed) {
+    //         warn('faild to load ghosts - ' + loading.ErrorCode + ' - ' + loading.ErrorType + ' - ' + loading.ErrorDescription);
+    //         continue;
+    //     }
+    //     print("got this many ghosts: " + loading.Ghosts.Length + " from " + filename);
+    // }
 }
 
 // check for permissions and
@@ -110,6 +183,10 @@ amount of the ghost that is shown doesn't seem to matter.
 */
 void RepackReplayForPlayersGhostsCoro(ref@ _opts) {
     auto map = GetApp().RootMap;
+    if (map is null) {
+        UI::ShowNotification("map null", "go to map you're trying to repack", vec4(1, .4, .1, .4), 10000);
+        return;
+    }
     auto opts = cast<RepackOpts>(_opts);
     if (opts is null) {
         warn("RepackReplayForPlayersGhostsCoro got null opts");
@@ -140,12 +217,13 @@ void RepackReplayForPlayersGhostsCoro(ref@ _opts) {
         }
         if (g.Result.Time <= 0 || g.Result.Time > 86400000) {
             print('g.Result.Time is ' + g.Result.Time);
-            continue;
+        } else {
+            print('saving ghost');
+            auto newReplayFn = "Repacked\\" + opts.shortFileName.ToLower().Replace(".replay.gbx", "-" + g.Nickname + "-" + Text::Format("%02d", i) + "-" + Text::Format("%dms", g.Result.Time) + ".Replay.gbx");
+            dfm.Replay_Save(newReplayFn, map, g);
+            print("Saved repacked replay: " + newReplayFn);
         }
-        print('saving ghost');
-        auto newReplayFn = opts.shortFileName.ToLower().Replace(".replay.gbx", "-" + g.Nickname + "-" + Text::Format("%02d", i) + "-" + Text::Format("%dms", g.Result.Time) + ".Replay.gbx");
-        dfm.Replay_Save(newReplayFn, map, g);
-        print("Saved repacked replay: " + newReplayFn);
+        dfm.Ghost_Upload("http://localhost:8888", g, "");
         sleep(100);
     }
 }
